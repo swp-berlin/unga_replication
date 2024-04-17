@@ -72,13 +72,7 @@ if (RunDataOrganizer == 1 & Continuation == 0) {
 library(Rcpp)
 library(RcppZiggurat)		## zrnorm(N)
 library(tidyverse)
-#install.packages("pkgbuild")
-#install.packages("devtools")
-#install.packages("rtools")
-#library(devtools)
-#library(pkgbuild)
-#library(rtools)
-#find_rtools()
+
 sourceCpp(file.path(Path, "RcppFunctions", "PopulateThetaVector.cpp"))
 sourceCpp(file.path(Path, "RcppFunctions", "VarBetaFunction.cpp"))
 sourceCpp(file.path(Path, "RcppFunctions", "BetaMeanFunction.cpp"))	
@@ -306,63 +300,88 @@ if (kk > Burn & ((kk - Burn) %% Thin == 0)) {
       file = file.path(Path, "Output", str_c("BurnKRW_", 	FileSuffix, ".txt")),
       ncolumns = 1
     )
-    write(Z,
-          file = file.path(Path, "Output", str_c("ZSaveRW_", 	FileSuffix, ".txt")),
-          ncolumns = 1)
-    write(gLo,
-          file = file.path(Path, "Output", str_c("gLoSaveRW_",	FileSuffix, ".txt")),
-          ncolumns = 1)
-    write(gHi,
-          file = file.path(Path, "Output", str_c("gHiSaveRW_",	FileSuffix, ".txt")),
-          ncolumns = 1)
-    write(
-      ThetaVector,
-      file =  file.path(
-        Path,
-        "Output",
-        str_c("ThetaVectorSaveRW_",	FileSuffix, ".txt")
-      ),
-      ncolumns = 1
-    )
-    write(
-      Theta,
-      file = file.path(Path, "Output", str_c("ThetaSaveRW_",	FileSuffix, ".txt")),
-      ncolumns = 1
-    )
-    write(
-      BetaVector,
-      file =  file.path(
-        Path,
-        "Output",
-        str_c("BetaVectorSaveRW_",	FileSuffix, ".txt")
-      ),
-      ncolumns = 1
-    )
-    write(
-      Gamma1,
-      file =  file.path(Path, "Output", str_c("Gamma1RW_", 		FileSuffix, ".txt")),
-      ncolumns = 1
-    )
-    write(
-      Gamma2,
-      file =  file.path(Path, "Output", str_c("Gamma2RW_", 		FileSuffix, ".txt")),
-      ncolumns = 1
-    )
+    
+    readr::write_lines(Z,
+          file = file.path(Path, "Output", str_c("ZSaveRW_test", 	FileSuffix, ".txt")))
+    
+        
+    readr::write_lines(gLo,
+          file = file.path(Path, "Output", str_c("gLoSaveRW_", 	FileSuffix, ".txt")))
+    
+        
+    readr::write_lines(gHi,
+          file = file.path(Path, "Output", str_c("gHiSaveRW_", 	FileSuffix, ".txt")))
+    
+        
+    readr::write_lines(ThetaVector,
+          file = file.path(Path, "Output", str_c("ThetaVectorSaveRW_", 	FileSuffix, ".txt")))
+    
+        
+    readr::write_lines(Theta,
+          file = file.path(Path, "Output", str_c("ThetaSaveRW_", 	FileSuffix, ".txt")))
+    
+    readr::write_lines(BetaVector,
+          file = file.path(Path, "Output", str_c("BetaVectorSaveRW_", 	FileSuffix, ".txt")))
+    
+        
+    readr::write_lines(Gamma1,
+          file = file.path(Path, "Output", str_c("Gamma1RW_", 	FileSuffix, ".txt")))
+    
+    readr::write_lines(Gamma2,
+          file = file.path(Path, "Output", str_c("Gamma2RW_", 	FileSuffix, ".txt")))
+    
+
   } ## END: 		if (kk %% PrintSave ==0){
 } 	## END: if(kk>Burn & ((kk-Burn) %% Thin == 0) {
 } 	## END: while(kk< K){
 EndTime = date()
 
+write(
+  c(Burn, kk, TotalK),
+  file = file.path(Path, "Output", str_c("BurnKRW_", 	FileSuffix, ".txt")),
+  ncolumns = 1
+)
 
-## Save for continuation purposes
-write(c(kk, Burn, K, TotalK), file = file.path(Path, "Output", str_c("BurnKRW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
-write(Z, 				file = file.path(Path, "Output", str_c("ZSaveRW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
-write(gLo, 				file = file.path(Path, "Output", str_c("gLoSaveRW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
-write(gHi, 				file = file.path(Path, "Output", str_c("gHiSaveRW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
-write(ThetaVector,		file = file.path(Path, "Output", str_c("ThetaVectorSaveRW_", 	FileSuffix, ".txt")), 	ncolumns = 1)
-write(BetaVector, 		file = file.path(Path, "Output", str_c("BetaVectorSaveRW_", 	FileSuffix, ".txt")), 	ncolumns = 1)
-write(Gamma1, 			file = file.path(Path, "Output", str_c("Gamma1RW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
-write(Gamma2, 			file = file.path(Path, "Output", str_c("Gamma2RW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
+
+readr::write_lines(Z,
+                   file = file.path(Path, "Output", str_c("ZSaveRW_test", 	FileSuffix, ".txt")))
+
+
+readr::write_lines(gLo,
+                   file = file.path(Path, "Output", str_c("gLoSaveRW_", 	FileSuffix, ".txt")))
+
+
+readr::write_lines(gHi,
+                   file = file.path(Path, "Output", str_c("gHiSaveRW_", 	FileSuffix, ".txt")))
+
+
+readr::write_lines(ThetaVector,
+                   file = file.path(
+                     Path,
+                     "Output",
+                     str_c("ThetaVectorSaveRW_", 	FileSuffix, ".txt")
+                   ))
+
+
+readr::write_lines(BetaVector,
+                   file = file.path(Path, "Output", str_c("BetaVectorSaveRW_", 	FileSuffix, ".txt")))
+
+
+readr::write_lines(Gamma1,
+                   file = file.path(Path, "Output", str_c("Gamma1RW_", 	FileSuffix, ".txt")))
+
+readr::write_lines(Gamma2,
+                   file = file.path(Path, "Output", str_c("Gamma2RW_", 	FileSuffix, ".txt")))
+# 
+# ## Save for continuation purposes
+# write(c(kk, Burn, K, TotalK), file = file.path(Path, "Output", str_c("BurnKRW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
+# write(Z, 				file = file.path(Path, "Output", str_c("ZSaveRW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
+# write(gLo, 				file = file.path(Path, "Output", str_c("gLoSaveRW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
+# write(gHi, 				file = file.path(Path, "Output", str_c("gHiSaveRW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
+# write(ThetaVector,		file = file.path(Path, "Output", str_c("ThetaVectorSaveRW_", 	FileSuffix, ".txt")), 	ncolumns = 1)
+# write(BetaVector, 		file = file.path(Path, "Output", str_c("BetaVectorSaveRW_", 	FileSuffix, ".txt")), 	ncolumns = 1)
+# write(Gamma1, 			file = file.path(Path, "Output", str_c("Gamma1RW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
+# write(Gamma2, 			file = file.path(Path, "Output", str_c("Gamma2RW_", 		FileSuffix, ".txt")), 	ncolumns = 1)
 
 # Estimates
 ThetaEst 		= apply(ThetaStore, 	2, 	mean)
@@ -370,12 +389,12 @@ ThetaEstDist	= t(apply(ThetaStore, 2, quantile, probs = c(0, 0.05, 0.1, 0.5, 0.9
 BetaEst 		= apply(BetaStore, 	2, 	mean)
 
 ThetaSummary 	= cbind(CountryList, SessionList, IndN, ThetaEst, ThetaEstDist)
-write(t(ThetaSummary), 	file = file.path(Path, "Output", str_c("ThetaSummaryRW_", 	FileSuffix, ".txt")), ncolumns = length(ThetaSummary[1,]))
-write(t(BetaEst), 	file = file.path(Path, "Output", str_c("BetaEstRW_", 		FileSuffix, ".txt")), ncolumns = 1)
-write(t(BetaStore), 	file = file.path(Path, "Output", str_c("BetaStoreRW_", 		FileSuffix, ".txt")), ncolumns = length(BetaStore[1,]))
-write(t(ThetaStore), 	file = file.path(Path, "Output", str_c("ThetaStoreRW_",		FileSuffix, ".txt")), ncolumns = length(ThetaStore[1,]))
-write(t(Gamma1Store), 	file = file.path(Path, "Output", str_c("Gamma1StoreRW_", 	FileSuffix, ".txt")), ncolumns = length(Gamma1Store[1,]))
-write(t(Gamma2Store), 	file = file.path(Path, "Output", str_c("Gamma2StoreRW_", 	FileSuffix, ".txt")), ncolumns = length(Gamma2Store[1,]))
+readr::write_delim(ThetaSummary |> as.data.frame(), 	file = file.path(Path, "Output", str_c("ThetaSummaryRW_", 	FileSuffix, ".txt")),col_names = FALSE)
+readr::write_delim(BetaEst|> as.data.frame(), 	file = file.path(Path, "Output", str_c("BetaEstRW_", 		FileSuffix, ".txt")),col_names = FALSE)
+readr::write_delim(BetaStore|> as.data.frame(), 	file = file.path(Path, "Output", str_c("BetaStoreRW_", 		FileSuffix, ".txt")),col_names = FALSE)
+readr::write_delim(ThetaStore|> as.data.frame(), 	file = file.path(Path, "Output", str_c("ThetaStoreRW_",		FileSuffix, ".txt")),col_names = FALSE)
+readr::write_delim(Gamma1Store|> as.data.frame(), 	file = file.path(Path, "Output", str_c("Gamma1StoreRW_", 	FileSuffix, ".txt")),col_names = FALSE)
+readr::write_delim(Gamma2Store|> as.data.frame(), 	file = file.path(Path, "Output", str_c("Gamma2StoreRW_", 	FileSuffix, ".txt")),col_names = FALSE)
 
 
 

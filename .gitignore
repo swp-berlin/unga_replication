@@ -5,7 +5,10 @@ venv/*
 05_results/Dokumentation.xlsx
 01_raw_data/*
 04_clean_data/*
-05_results/*
+05_results/*.rds
+05_results/archive/*
+05_results/*.RData
+05_results/mcmc_models/*
 
 03_code/United-Nations-General-Assembly-Votes-and-Ideal-Points/Output/*
 03_code/United-Nations-General-Assembly-Votes-and-Ideal-Points/Data/*
