@@ -226,7 +226,7 @@ res_level_health <- prediction_data |>
          perc_paragraph_session_int_sec = n_session_int_sec/n_paragraphs_session*100) 
 
 apriori <- read_xlsx("04_clean_data/apriori_health_related_res.xlsx") |> 
-  clean_names() |> 
+  janitor::clean_names() |> 
   left_join(res_level_health, by = c("resolution_no" = "res_no_original")) |> 
   mutate(diff_mean = perc_res_health - mean_perc_session_res_health,
          diff_sd = diff_mean/sd_perc_session_res_health) |> 
