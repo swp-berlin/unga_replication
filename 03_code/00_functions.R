@@ -115,3 +115,50 @@ extract_digit <- function(x) {
   purrr::map_chr(x, function(x)
     stringr::str_extract_all(x, "\\d") %>% unlist() %>% paste(., collapse = "")) %>% as.num()
 }
+
+make_ideal_point_csv <- function(Path, FileSuffix){
+  file <- paste(Path, "/Output/ThetaSummaryRW_",FileSuffix, ".txt", sep="")
+  if(file.exists(file)){
+    df <- read.table(file = file)
+    #Note that we are going to work with the mean ideal point as the point estimate. There are also Quantile estimates (Q50 is the median of the posterior distribution)
+    colnames(df)<- c("ccode", "session", 
+                     paste("NVotes", sep=""), 
+                     paste("IdealPoint", sep=""), 
+                     paste("QO%" , sep=""),	
+                     paste("Q5%" , sep=""), 
+                     paste("Q10%" , sep=""), 
+                     paste("Q50%" , sep=""),	
+                     paste("Q90%" , sep=""), 
+                     paste("Q95%" , sep=""), 
+                     paste("Q100%", sep=""))
+    
+    
+    df$iso3c  <- countrycode(df$ccode, "cown", "iso3c", warn = T)
+    df$Countryname <- countrycode(df$ccode, "cown", "country.name", warn=T)
+    #Fixing missing iso3c codes
+    df <- df %>%  mutate(iso3c = if_else(ccode == 265, "DDR", iso3c),
+                         iso3c = if_else(ccode == 260, "DEU", iso3c),
+                         iso3c = if_else(ccode == 315, "CSK", iso3c),
+                         iso3c = if_else(ccode == 345, "YUG", iso3c),
+                         iso3c = if_else(ccode == 678, "YAR", iso3c),
+                         iso3c = if_else(ccode == 680, "YAR", iso3c),
+                         Countryname = if_else(ccode == 260, "German Federal Republic", Countryname),
+    )
+    
+    write.csv(df, file = paste(Path, "/Output/Idealpointestimates",FileSuffix, ".csv", sep="")) 
+  }
+}
+
+read_ideal_point_csv <- function(Path, FileSuffix){
+  file <- paste(Path, "/Output/Idealpointestimates",FileSuffix, ".csv", sep="")
+  if(file.exists(file)){
+    read_csv(file) |> 
+      dplyr::distinct(ccode, phi = IdealPoint, session) |> 
+      mutate(suffix = FileSuffix, 
+             datacode = str_remove_all(FileSuffix,"_\\d+.*") |> str_remove_all("_replication"),
+             percent = str_extract(FileSuffix,"_\\d{2}$|_sd$") |> str_remove_all("_"),
+             issue = case_when(
+               datacode == "All"~paste0(datacode),
+                T~paste0(datacode, "\ncut-off: ", percent, "%"))) 
+  }
+}
