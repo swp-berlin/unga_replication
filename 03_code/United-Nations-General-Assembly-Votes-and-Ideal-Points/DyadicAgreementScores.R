@@ -2,7 +2,7 @@ load(paste(Path,"Data\\UNVotes.RData",sep=""))
 
 ## Keep only columns that we will use 
 library(tidyverse)
-df <- completeVotes %>%   select(vote, ccode, rcid, session)
+df <- completeVotes %>%   dplyr::select(vote, ccode, rcid, session)
 
 #Create dyadic data
 df <- df %>% expand(ccode1=ccode, ccode2=ccode, rcid) %>%
@@ -20,7 +20,7 @@ dfAgree <- df  %>% group_by(session.x, ccode1, ccode2) %>%
  summarise(agree = mean(Agree, na.rm = TRUE)) %>%
   mutate(year=session.x+1945)
 dfIdeal <- read.csv( file=paste(Path, "Output\\Idealpointestimates",FileSuffix, ".csv", sep=""))
-dfIdeal <- select(dfIdeal, ccode, session, IdealPoint, NVotes)
+dfIdeal <- dplyr::select(dfIdeal, ccode, session, IdealPoint, NVotes)
 dfAgree <- left_join(dfAgree, dfIdeal,by=c("ccode1"="ccode", "session.x"="session" ))
 dfAgree <- left_join(dfAgree, dfIdeal,by=c("ccode2"="ccode", "session.x"="session" ))
 dfAgree$IdealPointDistance <- abs(dfAgree$IdealPoint.x-dfAgree$IdealPoint.y)

@@ -63,7 +63,7 @@ FitStats		= 0		## Set to 1 if want to calculate fit stats (log likelihood, MSE, 
 ## Run organizer if needed to generate data files from raw data
 if (RunDataOrganizer == 1 & Continuation == 0) {
   print("Running data organizer . . . ")
-  source(file.path(Path, "UN_DataProcessing.R"))	## The file name is encoded MANUALLY ##
+  source(file.path(Path, "UN_DataProcessing.R"), local = T)	## The file name is encoded MANUALLY ##
 } 
 	## END if(RunDataOrganizer == 1 & Continuation == 0) 
 

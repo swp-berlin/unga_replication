@@ -20,18 +20,20 @@ library(tidyverse)
 
 
 ## Load full raw data file
-Matched	= read.csv(file = file.path(Path, "Data", "Matches.csv"), head =
+Matched	= read.csv(file = file.path(Path, "Data", "Matches.csv"), 
+                   head =
                      TRUE)
 # old <- load(file.path(Path, "Data", "UNVotes.Rdata"))
 # old <- get(old)
 # rm(completeVotes)
 
 
-if(str_detect(FileSuffix,"15")){
-  load(file.path(Path, "Data", "UNVotes_new_15.Rdata"))
+if(str_detect(FileSuffix, "15")) {
+  load(file.path(Path, "Data", "UNVotes_new_15.RData"))
+} else if (str_detect(FileSuffix, "_sd")) {
+  load(file.path(Path, "Data", "UNVotes_new_sd.RData"))
 } else {
-  load(file.path(Path, "Data", "UNVotes_new_10.Rdata"))
-  
+  load(file.path(Path, "Data", "UNVotes_new_10.RData"))
 }
 
 
@@ -97,79 +99,8 @@ if (DataCode == "health") 		{
 if (DataCode == "peace and security") 		{
   UN	= UNall[which(UNall$vote < 4 &
                      UNall$session != 19 & UNall$ccode != 511),] |> filter(pc == 1)
-}	## which prevents NAs from entering
+}	
 
-if (DataCode == "Important") 	{
-  UN	= UNall[which(UNall$vote < 4 &
-                     UNall$session != 19 &
-                     UNall$ccode != 511 & UNall$importantvote == 1),]
-}
-if (DataCode == "NoNukes") 	{
-  UN	= UNall[which(
-    UNall$vote < 4 &
-      UNall$session != 19 &
-      UNall$ccode != 511 & is.na(UNall$nu) == 0 & UNall$nu == 0
-  ),]
-}
-if (DataCode == "MiddleEast") 	{
-  ## 29th session onward (could be 22nd onward?)
-  UN	= UNall[which(
-    UNall$vote < 4 &
-      UNall$session != 19 &
-      UNall$ccode != 511 &
-      is.na(UNall$me) == 0 & UNall$me == 1 & UNall$session > 28
-  ),]
-}
-if (DataCode == "HumanRights") 	{
-  ## 25th session onward
-  UN	= UNall[which(
-    UNall$vote < 4 &
-      UNall$session != 19 &
-      UNall$ccode != 511 &
-      is.na(UNall$hr) == 0 &
-      UNall$hr == 1 & UNall$session > 24 & UNall$ccode != 713
-  ),]
-}
-## For HumanRights: remove Taiwan (ccode = 713) b/c only one year of data
-if (DataCode == "Nuclear") 	{
-  ## 33rd  session onward (could be 22nd or 29th onward?)
-  UN	= UNall[which(
-    UNall$vote < 4 &
-      UNall$session != 19 &
-      UNall$ccode != 511 &
-      is.na(UNall$nu) == 0 &
-      UNall$nu == 1 & UNall$session > 32 & UNall$ccode != 626
-  ),]
-}
-## For nuclear: remove South Sudan (ccode = 626) b/c only one year of data
-if (DataCode == "Economic") 	{
-  ## 26th session onward
-  UN	= UNall[which(
-    UNall$vote < 4 &
-      UNall$session != 19 &
-      UNall$ccode != 511 &
-      is.na(UNall$ec) == 0 & UNall$ec == 1 & UNall$session > 25
-  ),]
-}
-if (DataCode == "Colonial") 	{
-  ## 14th session onward (could be from 1st session onward)
-  UN	= UNall[which(
-    UNall$vote < 4 &
-      UNall$session != 19 &
-      UNall$ccode != 511 &
-      is.na(UNall$co) == 0 & UNall$co == 1 & UNall$session > 13
-  ),]
-}
-if (DataCode == "Disarmament") 	{
-  ## 29th session onward
-  UN	= UNall[which(
-    UNall$vote < 4 &
-      UNall$session != 19 &
-      UNall$ccode != 511 &
-      is.na(UNall$di) == 0 & UNall$co == 1 & UNall$session > 28
-  ),]
-}
-#rm(UNall)		 	dim(UN)				## CHECK: dim(UN); names(UN); table(UN$session);	sum(is.na(UN$session))
 
 
 ##
@@ -191,7 +122,6 @@ for (rr in 0:(NMatch - 1)) {
 }
 ## For each rcid2, find minimum of rcid1 associated with that and set rcidL to that
 ## ORIG for (rr in 0:(NMatch-1)) 		UN$rcidL[UN$rcidL==Matched$rcid2[NMatch-rr]] = Matched$rcid1[NMatch-rr]
-
 
 ##
 ## Purge data set of unanimous votes and country-years with no variation
