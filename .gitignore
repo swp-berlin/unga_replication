@@ -23,6 +23,8 @@ venv/*
 03_code/02_estimation.R
 www/*
 
+problematic_rcids.csv
+
 
 *.Rproj
 
