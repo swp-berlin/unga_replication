@@ -31,6 +31,7 @@ source("03_code/00_functions.R")
 
 
 data <- read_rds("05_results/final_voeten_data_15.RData")
+
 prediction_data <- list.files("05_results", full.names = T) %>%
   .[str_detect(., "para_level_info.rds")] %>%
   sort(., decreasing = T) |>
@@ -153,6 +154,44 @@ ggplot(country_estimates_voeten |>
 
 ggsave(file.path(dir, "ideal_points_health_robust_15.png"), width = 10, height = 7)
 
+
+### health alternative plot
+
+health_wide <- country_estimates_voeten |> 
+  filter(str_detect(issue,"All|health")) |> 
+  filter(is.na(percent)|percent ==10) |> 
+  dplyr::select(ccode, Country, suffix, year, phi) |> 
+  pivot_wider(id_cols = c(ccode,suffix, Country, issue), names_from = "year", values_from = "phi") |> 
+  janitor::clean_names() |> 
+  mutate(color_arrow = if_else(x1993_2014>x2015_2024, "1", "0"))
+
+unique(health_wide$issue)[2]
+
+ggplot(health_wide) +
+  geom_point(aes(x = reorder(country,x1993_2014), y = x1993_2014)) +
+  geom_label_repel(data = tibble(x = "USA", y = 1.0, 
+                                 label = "Period 1993-2014", issue = "health\ncut-off: 10%"),
+                   aes(x = x, y = y, label = label), fill = swp_cols("blau2"), 
+                   color = "white", fontface = "bold", 
+                   label.size = NA, nudge_x = 1.5) +  
+  geom_label_repel(data = tibble(x = "USA", y = .71, 
+                                 label = "Period 2015-2024", issue = "health\ncut-off: 10%"),
+                   aes(x = x, y = y, label = label), fill = swp_cols("blau2"), 
+                   color = "white", fontface = "bold", 
+                   label.size = NA, nudge_x = -0.5, nudge_y = -0.5) +
+  geom_segment(aes(x = reorder(country,x1993_2014), 
+                   y = x1993_2014, yend = x2015_2024,
+                   color = color_arrow),
+               show.legend = FALSE,
+               arrow = arrow(length = unit(0.5, "cm")), linewidth = 2) +
+  coord_flip() +
+  scale_color_manual(values = swp_cols("gruen2","rot2"))+
+  facet_wrap(. ~ issue)+
+  theme_swp()+
+  labs(title = "Ideal Point Estimates", subtitle = "between 1993-2014 and 2015-2024", x = "Ideal Points",y = "")
+
+ggsave(file.path(dir, "ideal_points_health_change.png"), width = 10, height = 7)
+ggsave(file.path(dir, "ideal_points_health_change_pres.png"), width = 16, height = 9)
 
 ## peace and security vs all
 ggplot(country_estimates_voeten |> 
@@ -311,8 +350,17 @@ ggplot(two_dimensionsal_matrix) +
   ) +
   guides(color = guide_legend(override.aes = list(fill = colors[1:5]), nrow = 2))
 
-
 ggsave(file.path(dir, "ideal_points_scatter_trend_health_all.png"), width = 10, height = 7)
+
+#### biggest change
+ideal_positions_wide <- country_estimates_voeten |> 
+  filter(str_detect(issue,"All|health")) |> 
+  filter(is.na(percent)|percent ==10) |> 
+  dplyr::select(ccode, Country, suffix, year, phi) |> 
+  pivot_wider(id_cols = c(ccode,suffix, Country, issue), names_from = "year", values_from = "phi") |> 
+  janitor::clean_names() |> 
+  mutate(color_arrow = if_else(x1993_2014>x2015_2024, "1", "0"))
+
 
 
 # #### voting blocs in a more general point cloud health vs peace and security
@@ -580,3 +628,18 @@ voting_behavior <- data |> filter(rcid %in% rcid_no, Country%in% c("MEX","RUS","
   pivot_wider(names_from = "Country", values_from = "vote")
 
 writexl::write_xlsx(voting_behavior, file.path(dir, "voting_behavior_chn_rus_mex.xlsx"))
+
+
+### number of resolutions in issue depending on cut-off
+
+data_15 <- read_rds("05_results/final_voeten_data_15.RData") |> 
+  distinct(unres_swp, rcid, pc, he) |> 
+  pivot_longer(cols = c(he, pc), names_to = "issue_area", values_to = "value") |> 
+  filter(value ==1) |> 
+  count(issue_area)
+
+data_10 <- read_rds("05_results/final_voeten_data_10.RData") |> 
+  distinct(unres_swp, rcid, pc, he) |> 
+  pivot_longer(cols = c(he, pc), names_to = "issue_area", values_to = "value") |> 
+  filter(value ==1) |> 
+  count(issue_area)

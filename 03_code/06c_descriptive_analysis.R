@@ -29,7 +29,7 @@ p_load(
 )
 conflicted::conflict_prefer("select", "dplyr")
 conflicts_prefer(dplyr::filter)
-
+conflicts_prefer(tidyr::replace_na)
 
 source("03_code/00_functions.R")
 
@@ -125,6 +125,49 @@ ggplot(counts_resolutions)+
        subtitle = "by year and topic")
 
 ggsave(file.path(dir, "consensus.png"), width = 10, height = 7)
+ggsave(file.path(dir, "consensus_pres.png"), width = 16, height = 9)
+
+consensus_global_health_yearly <- res_level_data |> 
+  ungroup( ) |> 
+  distinct(unres, vote_date, session, years, title, perc_res_health, perc_res_int_sec) |> 
+  mutate(he_10 = if_else(perc_res_health >=10, 1, 0))|> 
+  mutate(pc_10 = if_else(perc_res_int_sec >=10, 1, 0)) |> 
+  mutate(he_15 = if_else(perc_res_health >=15, 1, 0))|> 
+  mutate(pc_15 = if_else(perc_res_int_sec >=15, 1, 0)) |> 
+  left_join(un_resolutions_data |> distinct(unres, adopted_without_vote)) |> 
+  pivot_longer(cols = c(contains("he_"),contains("pc_")), names_to = "topic", values_to = "topic_value") |> 
+  filter(topic_value ==1) |> 
+  mutate(topic = case_when(
+    str_detect(topic, "^he_") ~ paste("Global Health: cut-off", str_extract(topic, "\\d+$"),"%"),
+    str_detect(topic, "^pc_") ~ paste("International Peace and Security: cut-off", str_extract(topic, "\\d+$"),"%")
+  )) |> 
+  count(adopted_without_vote, years, topic)|> 
+  complete(adopted_without_vote, years, topic) |> 
+  replace_na(list(n = 0))  |> 
+  filter(str_detect(topic, "Global Health: cut-off 15 %")) |> 
+  group_by(years, topic) |> 
+  summarise(consensus_share = n[adopted_without_vote==1]/sum(n)*100, total = sum(n)) |> 
+  mutate(year = str_extract(years,".*/") |> str_remove("/") |> as.numeric()) |> 
+  ungroup() |> 
+  mutate(year_bin = split_var(year, n = 5)) |> 
+  group_by(year_bin) |> 
+  mutate(mean_consensus = mean(consensus_share), segment_start = min(years), segment_end = max(years))
+
+ggplot(consensus_global_health_yearly)+
+  geom_segment(aes(x = segment_start, xend = segment_end, y = mean_consensus), linewidth = 2, alpha = 0.8, color = swp_cols("weinrot4"))+
+  geom_step(aes(x = years, y = consensus_share, group = 1), color = swp_cols("blau3"), linewidth = 2) +
+  geom_point(aes(x = years, y = consensus_share, size = total),color = swp_cols("ocker3"))+
+  scale_size(range = c(2, 8),name = "Total # of resolutions in session") +
+  theme_swp(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))+
+  scale_y_continuous(limits = c(0,100), breaks = seq(0,100,20))+
+  labs(title = "Share of consensual votes in the UNGA", 
+       subtitle = glue::glue("in {unique(consensus_global_health_yearly$topic)}"), 
+       caption = "in red the mean consensus share across 5 periods of time", x = "Sessions", y = "Consensus share in %")
+
+ggsave(file.path(dir, "consensus_health.png"), width = 10, height = 7)
+ggsave(file.path(dir, "consensus_health_pres.png"), width = 16, height = 9)
+
+
 
 top_health <-  res_level_data |> 
   ungroup( ) |> 
@@ -144,6 +187,22 @@ top_ipas <-  res_level_data |>
 
 writexl::write_xlsx(top_ipas, file.path(dir,"top_50_ipas.xlsx"))
 
+## paragraph distribution 
+
+year_data <- prediction_data |> group_by(years) |> 
+  summarise(n_paragraphs = n(),
+            n_res = length(unique(unres)))
+
+
+ggplot(year_data |> filter(!str_detect(years,"2025")),aes(x = years, y = n_paragraphs))+
+  geom_col(fill = swp_cols("blau3"))+
+  geom_text(aes(label = str_c("Res: ",n_res)),
+             color = "white", fontface = "bold", nudge_y = -2000)+
+  labs(title = "Number of paragraphs", subtitle = "per session", x = "", y = "")+
+  coord_flip()+
+  theme_swp(axis.text.x = element_text(angle = 45, hjust = 1, vjust = 1))
+
+ggsave(file.path(dir,"paragraphs_sessions_pres.png"),width = 7, height = 9)
 
 # across single resolutions
 ggplot(res_level_data_long |> filter(str_detect(type, "perc_res"))) +
@@ -161,6 +220,7 @@ ggplot(res_level_data_long |> filter(str_detect(type, "perc_res"))) +
   coord_flip()
 
 ggsave(file.path(dir, "distribution_res.png"), width = 10, height = 7)
+ggsave(file.path(dir, "distribution_res_pres.png"), width = 16, height = 9)
 
 count_perc_res <- res_level_data_long |> 
   filter(str_detect(type, "perc_res")) |>
@@ -206,25 +266,8 @@ covid_in_health_paragraphs <- prediction_data |>
   group_by(years) |> 
   mutate(n_health = n()) |> 
   count(years,corona,n_session,n_health) |> 
-  mutate(share_health_total = n/n_session*100 |> round(1))
-
-change_point <- changepoint::cpt.mean(covid_in_health_paragraphs |> filter(corona ==0) |> pull(share_health_total),penalty = "BIC", method = "BinSeg") 
-
-mean_health_change_point <- tibble(years = unique(covid_in_health_paragraphs$years))
-
-mean_health_change_point$change_group <- NA
-mean_health_change_point$change_group[attributes(change_point)$cpts] <- attributes(change_point)$cpts
-
-mean_health_change_point <- mean_health_change_point |> 
-  fill(change_group, .direction = "up") |> 
-  left_join(covid_in_health_paragraphs |> filter(corona ==0)) |> 
-  group_by(change_group) |> 
-  mutate(mean = mean(share_health_total)) |> 
-  group_by(change_group) |> 
-  filter(years == min(years)|years ==max(years)) |> 
-  dplyr::select(years, change_group, mean) |> 
-  mutate(value = if_else(years==min(years), "x","xend")) |> 
-  pivot_wider(id_cols = c(change_group, mean), values_from = "years", names_from = "value")
+  mutate(share_health_total = n/n_session*100 |> round(1)) |> 
+  filter(corona ==0)
 
 int_sec_paragraphs <- prediction_data |> 
   ungroup() |> 
@@ -236,38 +279,17 @@ int_sec_paragraphs <- prediction_data |>
   count(years,n_session,n_int_sec) |> 
   mutate(share_int_sec_total = n/n_session*100 |> round(1))
 
-change_point_int_sec <- changepoint::cpt.mean(int_sec_paragraphs |> pull(share_int_sec_total),
-                                              penalty = "BIC", 
-                                              method = "BinSeg") 
-
-mean_intsec_change_point <- tibble(years = unique(int_sec_paragraphs$years))
-
-mean_intsec_change_point$change_group <- NA
-mean_intsec_change_point$change_group[attributes(change_point_int_sec)$cpts] <- attributes(change_point_int_sec)$cpts
-
-mean_intsec_change_point <- mean_intsec_change_point |> 
-  fill(change_group, .direction = "up") |> 
-  left_join(int_sec_paragraphs) |> 
-  group_by(change_group) |> 
-  mutate(mean = mean(share_int_sec_total)) |> 
-  group_by(change_group) |> 
-  filter(years == min(years)|years ==max(years)) |> 
-  dplyr::select(years, change_group, mean) |> 
-  mutate(value = if_else(years==min(years), "x","xend")) |> 
-  pivot_wider(id_cols = c(change_group, mean), values_from = "years", names_from = "value")
-
-
 
 ggplot(mean_perc_share_session) +
-  geom_segment(
-    data = mean_health_change_point,
-    aes(x = x, xend = xend, y = mean),
+  geom_line(
+    data = covid_in_health_paragraphs,
+    aes(x = years, y = share_health_total, group = 1),
     color = swp_cols("rot4"),
     linewidth = 2
   ) +
-  geom_segment(
-    data = mean_intsec_change_point,
-    aes(x = x, xend = xend, y = mean),
+  geom_line(
+    data = int_sec_paragraphs,
+    aes(x = years, y = share_int_sec_total, group = 1),
     color = swp_cols("rot4"),
     linewidth = 2
   ) +
@@ -295,14 +317,13 @@ ggplot(mean_perc_share_session) +
     aes(
       x = "2004/2005",
       y = y,
-      label = str_wrap("Mean share of paragraphs in session \n(equal weight for each paragraph)",40)
+      label = str_wrap("Share of paragraphs in session \n(equal weight for each paragraph) \nfor health excluding Corona/Covid",40)
     ),fontface = "bold",
     color = "white", fill = swp_cols("rot4"),show.legend = F
   )+
 scale_color_manual(values = swp_cols("blau2", "ocker3"), name = "Issue Area") +
 scale_fill_manual(values = swp_cols("blau2", "ocker3"), name = "Issue Area") +
-  labs(title = "Issue Share", subtitle = "by session and change point", 
-       caption = "Red lines are means across changepoints. Changepoint detection with changepoint-package, <br>method: *BinSeq*, penalty: *BIC*; for health excluding paragraphs that contain 'corona' or 'covid'") +
+  labs(title = "Issue Share", subtitle = "by session and change point") +
   theme_swp(axis.text.x = element_text(
     angle = 45,
     hjust = 1,
@@ -313,4 +334,5 @@ scale_fill_manual(values = swp_cols("blau2", "ocker3"), name = "Issue Area") +
   xlab("")
 
 ggsave(file.path(dir, "mean_perc_session.png"), width = 10, height = 7)
+ggsave(file.path(dir, "mean_perc_session_pres.png"), width = 16, height = 9)
 
