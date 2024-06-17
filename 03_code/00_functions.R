@@ -118,8 +118,21 @@ extract_digit <- function(x) {
 
 make_ideal_point_csv <- function(Path, FileSuffix){
   file <- paste(Path, "/Output/ThetaSummaryRW_",FileSuffix, ".txt", sep="")
+  posterior <- paste(Path, "/Output/ThetaStoreRW_",FileSuffix, ".txt", sep="")
   if(file.exists(file)){
     df <- read.table(file = file)
+    posterior <- readr::read_table(file = posterior,col_names = FALSE) 
+    ci <- posterior |> 
+      mutate(across(everything(),~bayestestR::ci(.x,ci = 0.9))) |> 
+      unnest() |> 
+      pivot_longer(cols = everything()) |> 
+      mutate(id = str_extract(name, "\\d+") |> as.numeric()) |> 
+      mutate(id = if_else(is.na(id),1,id+1),
+             name = str_remove_all(name, "\\d+")) |> 
+      distinct() |> 
+      pivot_wider(id_cols = id, names_from = "name", values_from = "value") |> 
+      dplyr::select(-id)
+
     #Note that we are going to work with the mean ideal point as the point estimate. There are also Quantile estimates (Q50 is the median of the posterior distribution)
     colnames(df)<- c("ccode", "session", 
                      paste("NVotes", sep=""), 
@@ -143,7 +156,8 @@ make_ideal_point_csv <- function(Path, FileSuffix){
                          iso3c = if_else(ccode == 678, "YAR", iso3c),
                          iso3c = if_else(ccode == 680, "YAR", iso3c),
                          Countryname = if_else(ccode == 260, "German Federal Republic", Countryname),
-    )
+    ) |> 
+      bind_cols(ci)
     
     write.csv(df, file = paste(Path, "/Output/Idealpointestimates",FileSuffix, ".csv", sep="")) 
   }
@@ -153,7 +167,7 @@ read_ideal_point_csv <- function(Path, FileSuffix){
   file <- paste(Path, "/Output/Idealpointestimates",FileSuffix, ".csv", sep="")
   if(file.exists(file)){
     read_csv(file) |> 
-      dplyr::distinct(ccode, phi = IdealPoint, session) |> 
+      dplyr::distinct(ccode, phi = IdealPoint, session, CI, CI_low, CI_high) |> 
       mutate(suffix = FileSuffix, 
              datacode = str_remove_all(FileSuffix,"_\\d+.*") |> str_remove_all("_replication"),
              percent = str_extract(FileSuffix,"_\\d{2}$|_sd$") |> str_remove_all("_"),
@@ -162,3 +176,19 @@ read_ideal_point_csv <- function(Path, FileSuffix){
                 T~paste0(datacode, "\ncut-off: ", percent, "%"))) 
   }
 }
+
+read_ideal_point_csv_barebones <- function(Path, FileSuffix){
+  file <- paste(Path, "/Output/Idealpointestimates",FileSuffix, ".csv", sep="")
+  if(file.exists(file)){
+    read_csv(file) |> 
+      mutate(suffix = FileSuffix, 
+             datacode = str_remove_all(FileSuffix,"_\\d+.*") |> str_remove_all("_replication"),
+             percent = str_extract(FileSuffix,"_\\d{2}$|_sd$") |> str_remove_all("_"),
+             issue = case_when(
+               datacode == "All"~paste0(datacode),
+                T~paste0(datacode, "\ncut-off: ", percent, "%"))) 
+  }
+}
+
+
+

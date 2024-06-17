@@ -17,7 +17,7 @@ p_load(
   char = c(
     'tidyverse',
     'readxl',
-    "MCMCpack","pdftools","conflicted","SWPcdR","scales","ggrepel","countrycode","ggnewscale")
+    "MCMCpack","pdftools","conflicted","SWPcdR","scales","ggrepel","countrycode","ggnewscale","bayestestR")
 )
 conflicted::conflict_prefer("select","dplyr")
 conflicts_prefer(dplyr::filter)
@@ -71,8 +71,12 @@ country_estimates_voeten <- pmap_dfr(combinations,read_ideal_point_csv) |>
   group_by(ccode) |> 
   left_join(data |> distinct(ccode, Country) |> filter(str_length(Country)==3)) |>
   left_join(un_sessions) |> 
+  pivot_longer(cols = c(phi, CI_low, CI_high), names_to = "type_estimate", values_to = "value") |> 
   group_by(issue) |> 
-  mutate(phi = rescale(phi, to = c(-1,1)))
+  mutate(value = rescale(value, to = c(-1,1))) |> 
+  dplyr::select(-CI) |> 
+  pivot_wider(names_from = "type_estimate", values_from = "value") |> 
+  rename(phi_low = CI_low, phi_high = CI_high)
 
 countries <- country_estimates_voeten |> 
   group_by(issue) |> 
@@ -104,26 +108,24 @@ colors <-
 ggplot(country_estimates_voeten |> 
          filter(str_detect(issue,"All|health")) |> 
          filter(is.na(percent)|percent ==10),
-       aes(x = year, y = phi, group = Country, color = Country)) +
-  geom_line(aes(color =  Country), linewidth = 1.5) +
-  geom_label_repel(aes(fill = Country, label = str_c(Country,":\n",round(phi,2))),
-                   fontface = "bold",family = "Cambria", 
-                   show.legend = F, color = "white",
-                   label.size = NA) +
-  facet_wrap(.~issue, scales = "free_x", strip.position = "bottom",ncol = 2) +
+       aes(x = Country, y = phi, group = year)) +
+  geom_point(aes(color = year)) +
+  geom_errorbar(aes(ymin=phi_low, ymax=phi_high, color = year), width=.5) +
+  facet_wrap(.~issue , scales = "free_x", strip.position = "bottom") +
   theme_swp(
-    axis.ticks.x = element_blank(),
-    axis.line.x = element_blank(),
-    panel.grid.major.x = element_blank()) +
+    axis.ticks.y = element_blank(),
+    axis.line.y = element_blank(),
+    panel.grid.major.y = element_blank()) +
   labs(x ="", y = "Ideal Point Estimate", 
        title = "Ideal Point Estimates",
        subtitle = "for sub-issue 'Global Health' compared to all votes", 
-       caption = "Ideal Points are rescaled to values between -1 and +1, different cut-offs for the amount of paragraphs in a resolution had to be issue related are chosen." |> str_wrap(70)) +
+       caption = "Ideal Points are rescaled to values between -1 and +1, different cut-offs for the amount of paragraphs in a resolution had to be issue related are chosen. Credible Intervals are 90% of observations of posterior distribution." |> str_wrap(70)) +
   theme(
     panel.spacing = unit(1.5, "lines")
   )+
   scale_color_manual(values = colors) +
-  scale_fill_manual(values = colors)
+  scale_fill_manual(values = colors)+
+  coord_flip()
 
 ggsave(file.path(dir, "ideal_points_health.png"), width = 10, height = 7)
 ggsave(file.path(dir, "ideal_points_health_pres.png"), width = 16, height = 9)
@@ -131,124 +133,175 @@ ggsave(file.path(dir, "ideal_points_health_pres.png"), width = 16, height = 9)
 ggplot(country_estimates_voeten |> 
          filter(str_detect(issue,"All|health")) |> 
          filter(is.na(percent)|percent ==15|percent=="sd"),
-       aes(x = year, y = phi, group = Country, color = Country)) +
-  geom_line(aes(color =  Country), linewidth = 1.5) +
-  geom_label_repel(aes(fill = Country, label = str_c(Country,":\n",round(phi,2))),
-                   fontface = "bold",family = "Cambria", 
-                   show.legend = F, color = "white",
-                   label.size = NA) +
-  facet_wrap(.~issue, scales = "free_x", strip.position = "bottom",ncol = 2) +
+       aes(x = Country, y = phi, group = year)) +
+  geom_point(aes(color = year)) +
+  geom_errorbar(aes(ymin=phi_low, ymax=phi_high, color = year), width=.5) +
+  facet_wrap(.~issue , scales = "free_x", strip.position = "bottom") +
   theme_swp(
-    axis.ticks.x = element_blank(),
-    axis.line.x = element_blank(),
-    panel.grid.major.x = element_blank()) +
+    axis.ticks.y = element_blank(),
+    axis.line.y = element_blank(),
+    panel.grid.major.y = element_blank()) +
   labs(x ="", y = "Ideal Point Estimate", 
        title = "Ideal Point Estimates",
        subtitle = "for sub-issue 'Global Health' compared to all votes", 
-       caption = "Ideal Points are rescaled to values between -1 and +1, different cut-offs for the amount of paragraphs in a resolution had to be issue related are chosen." |> str_wrap(70)) +
+       caption = "Ideal Points are rescaled to values between -1 and +1, different cut-offs for the amount of paragraphs in a resolution had to be issue related are chosen. Credible Intervals are 90% of observations of posterior distribution." |> str_wrap(70)) +
   theme(
     panel.spacing = unit(1.5, "lines")
   )+
   scale_color_manual(values = colors) +
-  scale_fill_manual(values = colors)
+  scale_fill_manual(values = colors)+
+  coord_flip()
 
 ggsave(file.path(dir, "ideal_points_health_robust_15.png"), width = 10, height = 7)
 
 
-### health alternative plot
+# ### health alternative plot
+# 
+# health_wide <- country_estimates_voeten |> 
+#   filter(str_detect(issue,"All|health")) |> 
+#   filter(is.na(percent)|percent ==10) |> 
+#   dplyr::select(ccode, Country, suffix, year, phi, phi_low, phi_high) |> 
+#   pivot_wider(id_cols = c(ccode,suffix, Country, issue), names_from = "year", values_from = c("phi","phi_low","phi_high")) |> 
+#   janitor::clean_names() |> 
+#   mutate(color_arrow = if_else(phi_1993_2014>phi_2015_2024, "1", "0"))
+# 
+# unique(health_wide$issue)[2]
+# 
+# ggplot(health_wide) +
+#   geom_point(aes(x = reorder(country,phi_1993_2014), y = phi_1993_2014)) +
+#   geom_label_repel(data = tibble(x = "USA", y = 1.0, 
+#                                  label = "Period 1993-2014", issue = "health\ncut-off: 10%"),
+#                    aes(x = x, y = y, label = label), fill = swp_cols("blau2"), 
+#                    color = "white", fontface = "bold", 
+#                    label.size = NA, nudge_x = 1.5) +  
+#   geom_label_repel(data = tibble(x = "USA", y = .71, 
+#                                  label = "Period 2015-2024", issue = "health\ncut-off: 10%"),
+#                    aes(x = x, y = y, label = label), fill = swp_cols("blau2"), 
+#                    color = "white", fontface = "bold", 
+#                    label.size = NA, nudge_x = -0.5, nudge_y = -0.5) +
+#   geom_errorbar(aes(x = reorder(country,phi_1993_2014), 
+#                     ymin = phi_low_1993_2014, ymax = phi_high_1993_2014), color = "black",
+#                 linewidth = 1.5, width = .5, alpha = 0.8)+
+#   geom_errorbar(aes(x = reorder(country,phi_1993_2014), 
+#                     ymin = phi_low_2015_2024, ymax = phi_high_2015_2024), color = "blue", 
+#                 linewidth = 1.5,width = .5, alpha = 0.8)+
+#   geom_segment(aes(x = reorder(country,phi_1993_2014), 
+#                    y = phi_1993_2014, yend = phi_2015_2024,
+#                    color = color_arrow),
+#                show.legend = FALSE,
+#                arrow = arrow(length = unit(0.5, "cm")), linewidth = 2) +
+#   coord_flip() +
+#   scale_color_manual(values = swp_cols("gruen2","rot2"))+
+#   facet_wrap(. ~ issue)+
+#   theme_swp()+
+#   labs(title = "Ideal Point Estimates", subtitle = "between 1993-2014 and 2015-2024", x = "Ideal Points",y = "")
+# 
+# ggsave(file.path(dir, "ideal_points_health_change.png"), width = 10, height = 7)
+# ggsave(file.path(dir, "ideal_points_health_change_pres.png"), width = 16, height = 9)
 
-health_wide <- country_estimates_voeten |> 
-  filter(str_detect(issue,"All|health")) |> 
-  filter(is.na(percent)|percent ==10) |> 
-  dplyr::select(ccode, Country, suffix, year, phi) |> 
-  pivot_wider(id_cols = c(ccode,suffix, Country, issue), names_from = "year", values_from = "phi") |> 
-  janitor::clean_names() |> 
-  mutate(color_arrow = if_else(x1993_2014>x2015_2024, "1", "0"))
+## Khan replication
+country_estimates_voeten <- pmap_dfr(combinations,read_ideal_point_csv) |> 
+  group_by(ccode) |> 
+  left_join(data |> distinct(ccode, Country) |> filter(str_length(Country)==3)) |>
+  left_join(un_sessions) |> 
+  pivot_longer(cols = c(phi, CI_low, CI_high), names_to = "type_estimate", values_to = "value") |> 
+  group_by(issue) |> 
+  mutate(value = rescale(value, to = c(-1,1))) |> 
+  dplyr::select(-CI) |> 
+  pivot_wider(names_from = "type_estimate", values_from = "value") |> 
+  rename(phi_low = CI_low, phi_high = CI_high)
 
-unique(health_wide$issue)[2]
+country_estimates_voeten <- country_estimates_voeten |> 
+  filter(Country %in% c( "CHN", "RUS",   "IND",  "BRA","BGD","ZAF"))
 
-ggplot(health_wide) +
-  geom_point(aes(x = reorder(country,x1993_2014), y = x1993_2014)) +
-  geom_label_repel(data = tibble(x = "USA", y = 1.0, 
-                                 label = "Period 1993-2014", issue = "health\ncut-off: 10%"),
-                   aes(x = x, y = y, label = label), fill = swp_cols("blau2"), 
-                   color = "white", fontface = "bold", 
-                   label.size = NA, nudge_x = 1.5) +  
-  geom_label_repel(data = tibble(x = "USA", y = .71, 
-                                 label = "Period 2015-2024", issue = "health\ncut-off: 10%"),
-                   aes(x = x, y = y, label = label), fill = swp_cols("blau2"), 
-                   color = "white", fontface = "bold", 
-                   label.size = NA, nudge_x = -0.5, nudge_y = -0.5) +
-  geom_segment(aes(x = reorder(country,x1993_2014), 
-                   y = x1993_2014, yend = x2015_2024,
-                   color = color_arrow),
-               show.legend = FALSE,
-               arrow = arrow(length = unit(0.5, "cm")), linewidth = 2) +
-  coord_flip() +
-  scale_color_manual(values = swp_cols("gruen2","rot2"))+
-  facet_wrap(. ~ issue)+
-  theme_swp()+
-  labs(title = "Ideal Point Estimates", subtitle = "between 1993-2014 and 2015-2024", x = "Ideal Points",y = "")
+colors <-
+  swp_cols(
+    "rot2",
+    "blau4",
+    "gruen4",
+    "gruen2",
+    "rot4",
+    "rot",
+    "ocker4",
+    "blau3",
+    "ocker2",
+    "grey80"
+  )
 
-ggsave(file.path(dir, "ideal_points_health_change.png"), width = 10, height = 7)
-ggsave(file.path(dir, "ideal_points_health_change_pres.png"), width = 16, height = 9)
+
+ggplot(country_estimates_voeten |> 
+         filter(str_detect(issue,"All|health")) |> 
+         filter(is.na(percent)|percent ==10),
+       aes(x = Country, y = phi, group = year)) +
+  geom_point(aes(color = year)) +
+  geom_errorbar(aes(ymin=phi_low, ymax=phi_high, color = year), width=.5) +
+  facet_wrap(.~issue , scales = "free_x", strip.position = "bottom") +
+  theme_swp(
+    axis.ticks.y = element_blank(),
+    axis.line.y = element_blank(),
+    panel.grid.major.y = element_blank()) +
+  labs(title = "Ideal Point Estimates", subtitle = "between 1993-2014 and 2015-2024", 
+       x = "Ideal Points",y = "",
+       caption = "Ideal Points are rescaled to values between -1 and +1, different cut-offs for the amount of paragraphs in a resolution had to be issue related are chosen. Credible Intervals are 90% of observations of posterior distribution." |> str_wrap(70)) +
+  theme(
+    panel.spacing = unit(1.5, "lines")
+  )+
+  scale_color_manual(values = colors) +
+  scale_fill_manual(values = colors)+
+  coord_flip()
+
+ggsave(file.path(dir, "ideal_points_health_changeKHAN.png"), width = 10, height = 7)
+ggsave(file.path(dir, "ideal_points_health_change_pres_KHAN.png"), width = 16, height = 9)
+
 
 ## peace and security vs all
+country_estimates_voeten <- pmap_dfr(combinations,read_ideal_point_csv) |> 
+  group_by(ccode) |> 
+  left_join(data |> distinct(ccode, Country) |> filter(str_length(Country)==3)) |>
+  left_join(un_sessions) |> 
+  pivot_longer(cols = c(phi, CI_low, CI_high), names_to = "type_estimate", values_to = "value") |> 
+  group_by(issue) |> 
+  mutate(value = rescale(value, to = c(-1,1))) |> 
+  dplyr::select(-CI) |> 
+  pivot_wider(names_from = "type_estimate", values_from = "value") |> 
+  rename(phi_low = CI_low, phi_high = CI_high)
+
+countries <- country_estimates_voeten |> 
+  group_by(issue) |> 
+  filter(phi == max(phi)|phi==min(phi)) |> 
+  pull(Country) |> 
+  c(x = _,
+    c("USA",  "CHN", "RUS", "DEU",  "ZAF",  "MEX")) |>
+  unique()
+
+country_estimates_voeten <- country_estimates_voeten |> 
+  filter(Country %in% countries)
+
 ggplot(country_estimates_voeten |> 
          filter(str_detect(issue,"All|peace")) |> 
          filter(is.na(percent)|percent ==10),
-       aes(x = year, y = phi, group = Country, color = Country)) +
-  geom_line(aes(color =  Country), linewidth = 1.5) +
-  geom_label_repel(aes(fill = Country, label = str_c(Country,":\n",round(phi,2))),
-                   fontface = "bold",family = "Cambria", 
-                   show.legend = F, color = "white",
-                   label.size = NA) +
-  facet_wrap(.~issue, scales = "free_x", strip.position = "bottom",ncol = 2) +
+       aes(x = Country, y = phi, group = year)) +
+  geom_point(aes(color = year)) +
+  geom_errorbar(aes(ymin=phi_low, ymax=phi_high, color = year), width=.5) +
+  facet_wrap(.~issue , scales = "free_x", strip.position = "bottom") +
   theme_swp(
-    axis.ticks.x = element_blank(),
-    axis.line.x = element_blank(),
-    panel.grid.major.x = element_blank()) +
+    axis.ticks.y = element_blank(),
+    axis.line.y = element_blank(),
+    panel.grid.major.y = element_blank()) +
   labs(x ="", y = "Ideal Point Estimate", 
        title = "Ideal Point Estimates",
        subtitle = "for sub-issue 'International Peace and Security' compared to all votes", 
-       caption = "Ideal Points are rescaled to values between -1 and +1, different cut-offs for the amount of paragraphs in a resolution had to be issue related are chosen." |> str_wrap(70)) +
+       caption = "Ideal Points are rescaled to values between -1 and +1, different cut-offs for the amount of paragraphs in a resolution had to be issue related are chosen. Credible Intervals are 90% of observations of posterior distribution." |> str_wrap(70)) +
   theme(
     panel.spacing = unit(1.5, "lines")
   )+
   scale_color_manual(values = colors) +
-  scale_fill_manual(values = colors)
+  scale_fill_manual(values = colors)+
+  coord_flip()
+
 
 ggsave(file.path(dir, "ideal_points_ipas.png"), width = 10, height = 7)
 ggsave(file.path(dir, "ideal_points_ipas_pres.png"), width = 16, height = 9)
-
-ggplot(country_estimates_voeten |> 
-         filter(str_detect(issue,"All|peace")) |> 
-         filter(is.na(percent)|percent ==15|percent =="sd"),
-       aes(x = year, y = phi, group = Country, color = Country)) +
-  geom_line(aes(color =  Country), linewidth = 1.5) +
-  geom_label_repel(aes(fill = Country, label = str_c(Country,":\n",round(phi,2))),
-                   fontface = "bold",family = "Cambria", 
-                   show.legend = F, color = "white",
-                   label.size = NA) +
-  facet_wrap(.~issue, scales = "free_x", strip.position = "bottom",ncol = 2) +
-  theme_swp(
-    axis.ticks.x = element_blank(),
-    axis.line.x = element_blank(),
-    panel.grid.major.x = element_blank()) +
-  labs(x ="", y = "Ideal Point Estimate", 
-       title = "Ideal Point Estimates",
-       subtitle = "for sub-issue 'International Peace and Security' compared to all votes", 
-       caption = "Ideal Points are rescaled to values between -1 and +1, different cut-offs for the amount of paragraphs in a resolution had to be issue related are chosen." |> str_wrap(70)) +
-  theme(
-    panel.spacing = unit(1.5, "lines")
-  )+
-  scale_color_manual(values = colors) +
-  scale_fill_manual(values = colors)
-
-ggsave(file.path(dir, "ideal_points_ipas_robust_15.png"), width = 10, height = 7)
-
-
-
 
 
 #### voting blocs in a more general point cloud health vs all
@@ -353,123 +406,28 @@ ggplot(two_dimensionsal_matrix) +
 ggsave(file.path(dir, "ideal_points_scatter_trend_health_all.png"), width = 10, height = 7)
 
 #### biggest change
+
+country_estimates_voeten <- pmap_dfr(combinations,read_ideal_point_csv) |> 
+  group_by(ccode) |> 
+  left_join(data |> distinct(ccode, Country) |> filter(str_length(Country)==3)) |>
+  left_join(un_sessions) |> 
+  group_by(issue) |> 
+  mutate(phi = rescale(phi, to = c(-1,1)))
+
+
 ideal_positions_wide <- country_estimates_voeten |> 
-  filter(str_detect(issue,"All|health")) |> 
-  filter(is.na(percent)|percent ==10) |> 
   dplyr::select(ccode, Country, suffix, year, phi) |> 
   pivot_wider(id_cols = c(ccode,suffix, Country, issue), names_from = "year", values_from = "phi") |> 
   janitor::clean_names() |> 
-  mutate(color_arrow = if_else(x1993_2014>x2015_2024, "1", "0"))
+  ungroup() |> 
+  mutate(dist =abs(x1993_2014 - x2015_2024)) |> 
+  filter(suffix %in% c("peace and security_replication_2024_10", "All_replication_2024","health_replication_2024_10")) |> 
+  group_by(suffix) |> 
+  slice_max(order_by = dist, n = 15) |> 
+  mutate(countryname = countrycode::countrycode(country, origin = "iso3c", destination = "country.name.en"))
 
 
 
-# #### voting blocs in a more general point cloud health vs peace and security
-# 
-# country_estimates_voeten <- pmap_dfr(combinations,read_ideal_point_csv) |> 
-#   group_by(ccode) |> 
-#   left_join(data |> distinct(ccode, Country) |> filter(str_length(Country)==3)) |>
-#   left_join(un_sessions) |> 
-#   group_by(issue) |> 
-#   mutate(phi = rescale(phi, to = c(-1,1))) |>
-#   mutate(percent = if_else(is.na(percent),"all", percent)) |> 
-#   filter(str_detect(suffix,"peace|All") ) |> 
-#   filter(percent %in% c("sd", "all"))
-# 
-# regional_groups <- readxl::read_xlsx("04_clean_data/2024_regional_groups.xlsx") |> 
-#   pivot_longer(cols = -iso_alpha3_code, names_to = "rg", values_to = "value") |> 
-#   filter(value ==1) |> 
-#   filter(!(iso_alpha3_code == "TUR" & rg =="rg_western_european_and_other_states"))
-#   
-#   
-# two_dimensionsal_matrix <- country_estimates_voeten |> 
-#   ungroup() |> 
-#   dplyr::select(Country, session, phi, year, suffix) |> 
-#   mutate(suffix = case_when(
-#     str_detect(suffix,"All")~"all",
-#     str_detect(suffix,"peace")~"peace",
-#     str_detect(suffix,"health")~"health"
-#   )) |> 
-#   pivot_wider(names_from = suffix, values_from = phi) |> 
-#   left_join(regional_groups, by = c("Country" = "iso_alpha3_code")) |> 
-#   mutate(rg = case_when(
-#     rg == "rg_african_states" ~ "African States",
-#     rg == "rg_asia_pacific_states" ~ "Asia Pacific States",
-#     rg == "rg_eastern_european_states" ~ "Eastern European States",
-#     rg == "rg_latin_american_and_caribbean_states" ~ "Latin American and Caribbean States",
-#     rg == "rg_western_european_and_other_states" ~ "Western European and Other States"
-#   )) 
-# 
-# colors <-
-#   swp_cols(
-#     "rot2",
-#     "ocker3",
-#     "gruen2",
-#     "weinrot2",
-#     "blau2"
-#   )
-# 
-# countries <- country_estimates_voeten |> 
-#   group_by(issue) |> 
-#   filter(phi == max(phi)|phi==min(phi)) |> 
-#   pull(Country) |> 
-#   c(x = _,
-#     c("USA",  "CHN", "RUS", "DEU",  "ZAF",  "MEX", "ISR")) |>
-#   unique()
-# 
-# eu_countries <- giscoR::gisco_countrycode |> filter(eu) |> pull(ISO3_CODE)
-# 
-# 
-# ggplot(two_dimensionsal_matrix) +
-#   geom_abline(aes(slope = 1, intercept = 0), color = "black", linewidth = 2, alpha = .5) +
-#   geom_smooth(
-#     data = two_dimensionsal_matrix |>
-#       dplyr::filter(Country %in% eu_countries),
-#     aes(x = all, y = peace ), method = "lm", color = "black", linewidth = 2, alpha = .5,se = FALSE
-#   ) +
-#   annotate(geom = "label",x = 0.8, y = 0, label = "Regression line \nfor EU countries", fill = "black", color = "white", fontface = "bold", label.size = NA)+
-#   geom_point(
-#     data = two_dimensionsal_matrix ,
-#     aes(
-#       x = all,
-#       y = peace ,
-#       group = Country,
-#       color = rg
-#     ),
-#     key_glyph = "rect"
-#   ) +
-#   scale_color_manual(values = colors, name = "Regional Groups: ") +
-#   geom_label_repel(
-#     data = two_dimensionsal_matrix |>
-#       filter(Country %in% countries),
-#     aes(
-#       x = all,
-#       y = peace ,
-#       group = Country,
-#       label = Country
-#     ),
-#     fill = swp_cols("ocker4"),
-#     label.size = NA,
-#     min.segment.length = 0.0,
-#     fontface = "bold",
-#     color = "white",
-#     max.time = 3,
-#     force = 100,
-#     max.overlaps = 6,
-#     show.legend = FALSE
-#   ) +
-#   facet_wrap(. ~ year) +
-#   theme_swp(aspect.ratio = 1) +
-#   labs(
-#     # x = "Ideal Points across all issues",
-#     # y = "Ideal Points across Global Health",
-#     title = "Ideal Points in two dimensions",
-#     subtitle = "for Global Health compared to overall ideal points"
-#   ) +
-#   guides(color = guide_legend(override.aes = list(fill = colors[1:5]), nrow = 2))
-# 
-# 
-# ggsave(file.path(dir, "ideal_points_scatter_trend_health_all.png"), width = 10, height = 7)
-# 
 
 #### co-voting of selected countries
 
